@@ -3,7 +3,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { parseNotice } from './parser';
 import { delayNoticeSchema, bulkDelayNoticeSchema } from './schema';
-import { x402Gate } from './middleware';
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 
 dotenv.config();
 
@@ -20,6 +22,7 @@ const paymentAsset = process.env.ASSET_ADDRESS as string;
 const payTo = process.env.SERVER_WALLET_ADDRESS as string;
 const singleParsePrice = process.env.PRICE_SINGLE as string;
 const bulkParsePrice = process.env.PRICE_BULK as string;
+const facilitatorUrl = process.env.FACILITATOR_URL || "https://testnet.x402.org";
 
 // Strict safety check: Fail to start if any crucial env var is missing
 if (!paymentNetwork || !paymentAsset || !payTo || !singleParsePrice || !bulkParsePrice || !port) {
@@ -27,18 +30,41 @@ if (!paymentNetwork || !paymentAsset || !payTo || !singleParsePrice || !bulkPars
   process.exit(1);
 }
 
+const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+const resourceServer = new x402ResourceServer(facilitatorClient)
+  .register(paymentNetwork, new ExactEvmScheme());
+
+// Apply x402 payment middleware to the routes
+app.use(paymentMiddleware({
+  "POST /api/parse/single": {
+    accepts: {
+      scheme: "exact",
+      price: singleParsePrice,
+      network: paymentNetwork,
+      asset: paymentAsset,
+      payTo: payTo,
+    },
+    description: "Parse a single railway delay notice"
+  },
+  "POST /api/parse/bulk": {
+    accepts: {
+      scheme: "exact",
+      price: bulkParsePrice,
+      network: paymentNetwork,
+      asset: paymentAsset,
+      payTo: payTo,
+    },
+    description: "Parse multiple railway delay notices"
+  }
+}, resourceServer));
+
 // 1. FREE ROUTE: Health check / status
 app.get('/api/status', (req: Request, res: Response) => {
   res.status(200).json({ status: 'active', message: 'Meera railway parser is running.' });
 });
 
 // 2. PAID ROUTE 1: Single parse
-app.post('/api/parse/single', x402Gate({
-  price: singleParsePrice,
-  network: paymentNetwork,
-  asset: paymentAsset,
-  payTo: payTo
-}), (req: Request, res: Response) => {
+app.post('/api/parse/single', (req: Request, res: Response) => {
   try {
     const rawText = req.body;
     if (!rawText || typeof rawText !== 'string') {
@@ -51,6 +77,7 @@ app.post('/api/parse/single', x402Gate({
     const validationResult = delayNoticeSchema.safeParse(parsedData);
     
     // Requirement: An unparseable notice returns a 4xx status
+    // Because this returns 422, @x402/express will NOT inject a PAYMENT-RESPONSE settlement!
     if (!validationResult.success) {
       return res.status(422).json({
         error: 'Unparseable notice',
@@ -65,12 +92,7 @@ app.post('/api/parse/single', x402Gate({
 });
 
 // 3. PAID ROUTE 2: Bulk parse
-app.post('/api/parse/bulk', x402Gate({
-  price: bulkParsePrice,
-  network: paymentNetwork,
-  asset: paymentAsset,
-  payTo: payTo
-}), (req: Request, res: Response) => {
+app.post('/api/parse/bulk', (req: Request, res: Response) => {
   try {
     const rawText = req.body;
     if (!rawText || typeof rawText !== 'string') {
@@ -83,6 +105,8 @@ app.post('/api/parse/bulk', x402Gate({
     // Validate against array schema
     const validationResult = bulkDelayNoticeSchema.safeParse(parsedArray);
     
+    // Requirement: An unparseable notice returns a 4xx status
+    // Because this returns 422, @x402/express will NOT inject a PAYMENT-RESPONSE settlement!
     if (!validationResult.success) {
       return res.status(422).json({
         error: 'One or more notices are unparseable',

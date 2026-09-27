@@ -17,7 +17,7 @@ app.use(express.text({ type: '*/*', limit: '100kb' }));
 app.use(cors());
 
 // Payment configurations strictly from environment variables
-const paymentNetwork = process.env.NETWORK_IDENTIFIER as string;
+const paymentNetwork = process.env.NETWORK_IDENTIFIER as `${string}:${string}`;
 const paymentAsset = process.env.ASSET_ADDRESS as string;
 const payTo = process.env.SERVER_WALLET_ADDRESS as string;
 const singleParsePrice = process.env.PRICE_SINGLE as string;
@@ -41,7 +41,6 @@ app.use(paymentMiddleware({
       scheme: "exact",
       price: singleParsePrice,
       network: paymentNetwork,
-      asset: paymentAsset,
       payTo: payTo,
     },
     description: "Parse a single railway delay notice"
@@ -51,7 +50,6 @@ app.use(paymentMiddleware({
       scheme: "exact",
       price: bulkParsePrice,
       network: paymentNetwork,
-      asset: paymentAsset,
       payTo: payTo,
     },
     description: "Parse multiple railway delay notices"

@@ -8,7 +8,7 @@ Meera's Railway Delay API exposes parsed railway notices via HTTP. It uses the `
 
 ### Acceptance Criteria Handled:
 1. **A route is gated by x402 payment requirements:** `x402Gate` middleware returns HTTP 402 with the exact x402 JSON payload.
-2. **Payment configuration targets a testnet:** Configured via `.env` to `eip155:84532` (Base Sepolia).
+2. **Payment configuration targets a testnet:** Configured entirely via `.env` variables to target the required testnets without hardcoding.
 3. **A buyer script pays through an x402 client:** Included in `src/buyer.ts` via manual header construction.
 4. **No credential appears in any tracked file:** `.env.example` has placeholders. `.env` is `.gitignore`d.
 5. **Route price is not derived from request input:** Defined strictly as environment constants (`PRICE_SINGLE`, `PRICE_BULK`).

@@ -8,7 +8,7 @@ import { x402Gate } from './middleware';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 // Requirement: Input size is capped server-side (e.g. 100kb limit)
 app.use(express.text({ type: '*/*', limit: '100kb' }));
@@ -22,7 +22,7 @@ const singleParsePrice = process.env.PRICE_SINGLE as string;
 const bulkParsePrice = process.env.PRICE_BULK as string;
 
 // Strict safety check: Fail to start if any crucial env var is missing
-if (!paymentNetwork || !paymentAsset || !payTo || !singleParsePrice || !bulkParsePrice) {
+if (!paymentNetwork || !paymentAsset || !payTo || !singleParsePrice || !bulkParsePrice || !port) {
   console.error("CRITICAL: Missing environment variables. Please check your .env file.");
   process.exit(1);
 }

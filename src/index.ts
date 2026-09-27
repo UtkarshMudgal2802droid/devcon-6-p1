@@ -14,13 +14,18 @@ const port = process.env.PORT || 3000;
 app.use(express.text({ type: '*/*', limit: '100kb' }));
 app.use(cors());
 
-// Payment configurations from environment, completely independent of request input
-const paymentNetwork = process.env.NETWORK_IDENTIFIER || 'eip155:84532';
-const paymentAsset = process.env.ASSET_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-const payTo = process.env.SERVER_WALLET_ADDRESS || '0x0000000000000000000000000000000000000000';
+// Payment configurations strictly from environment variables
+const paymentNetwork = process.env.NETWORK_IDENTIFIER as string;
+const paymentAsset = process.env.ASSET_ADDRESS as string;
+const payTo = process.env.SERVER_WALLET_ADDRESS as string;
+const singleParsePrice = process.env.PRICE_SINGLE as string;
+const bulkParsePrice = process.env.PRICE_BULK as string;
 
-const singleParsePrice = process.env.PRICE_SINGLE || '1000';
-const bulkParsePrice = process.env.PRICE_BULK || '5000';
+// Strict safety check: Fail to start if any crucial env var is missing
+if (!paymentNetwork || !paymentAsset || !payTo || !singleParsePrice || !bulkParsePrice) {
+  console.error("CRITICAL: Missing environment variables. Please check your .env file.");
+  process.exit(1);
+}
 
 // 1. FREE ROUTE: Health check / status
 app.get('/api/status', (req: Request, res: Response) => {
